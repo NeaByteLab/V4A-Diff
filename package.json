@@ -1,0 +1,72 @@
+{
+  "name": "@neabyte/v4a-diff",
+  "version": "0.1.0",
+  "description": "Apply context-anchored file patches from LLM tool calls",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "unbuild --minify",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "rm -rf dist && npm run build"
+  },
+  "keywords": [
+    "anthropic",
+    "code-editing",
+    "context-anchored-diff",
+    "deno",
+    "diff-engine",
+    "diff-parser",
+    "esm",
+    "fuzz-matching",
+    "jsr",
+    "llm-tools",
+    "npm-package",
+    "openai",
+    "patch-applier",
+    "structured-diff",
+    "text-patching",
+    "tool-calling",
+    "typescript",
+    "unicode-normalization",
+    "v4a-diff",
+    "zero-dependencies"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "unbuild": "^3.6.1"
+  },
+  "author": {
+    "name": "NeaByteLab",
+    "email": "me@neabyte.com",
+    "url": "https://github.com/NeaByteLab"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NeaByteLab/V4A-Diff.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NeaByteLab/V4A-Diff/issues"
+  },
+  "homepage": "https://github.com/NeaByteLab/V4A-Diff#readme",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
