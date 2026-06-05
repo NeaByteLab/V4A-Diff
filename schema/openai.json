@@ -1,0 +1,27 @@
+{
+  "type": "function",
+  "function": {
+    "name": "apply_patch",
+    "description": "Apply a file text edit using V4A context-anchored diff format.\n\n# Format\n\nThe \"diff\" argument must follow this structure exactly:\n\n## Update an existing file:\n\n*** Begin Patch\n*** Update File: {path}\n@@ {anchor_line}\n{prefixed_lines}\n*** End Patch\n\n## Create a new file from scratch:\n\n*** Begin Patch\n*** Add File: {path}\n+{line1}\n+{line2}\n*** End Patch\n\nWhen creating a file, set mode to \"create\". Every line must start with \"+\".\n\nEvery line between @@ and the next @@ or *** End Patch MUST start with one of these three prefix characters:\n  \" \" (space) = context line — an exact unchanged copy of the line from the file\n  \"-\"         = a line being removed — must exactly match the file\n  \"+\"         = a line being added\n\nThe @@ anchor is a line from the file that helps locate where to apply the edit. A bare @@ alone means \"start of file.\"\n\n# Rules\n\n1. Every single line in a hunk must begin with a space, -, or +. No exceptions.\n2. Context lines and - lines must be character-for-character copies from the file.\n3. Only one apply_patch call. Put all hunks in a single diff string.\n4. Keep changes minimal.\n\n# Examples\n\nUpdate a file:\n\n*** Begin Patch\n*** Update File: /src/math.ts\n@@\n function add(a: number, b: number) {\n-  return a - b\n+  return a + b\n }\n*** End Patch\n\nCreate a new file (mode: \"create\"):\n\n*** Begin Patch\n*** Add File: /src/config.ts\n+export const PORT = 8080\n+export const HOST = \"localhost\"\n*** End Patch\n\nTwo fixes in one file:\n\n*** Begin Patch\n*** Update File: /src/math.ts\n@@ function add(\n function add(a: number, b: number) {\n-  return a - b\n+  return a + b\n }\n@@ function sub(\n function sub(a: number, b: number) {\n-  return a + b\n+  return a - b\n }\n*** End Patch\n\nAdding a new line:\n\n*** Begin Patch\n*** Update File: /src/math.ts\n@@ function divide(\n function divide(a: number, b: number) {\n+  if (b === 0) throw new Error(\"division by zero\")\n   return a / b\n }\n*** End Patch",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The absolute path to the file to modify"
+        },
+        "diff": {
+          "type": "string",
+          "description": "V4A diff with @@ anchor headers and space/+/- prefixed lines"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["default", "create"],
+          "description": "default = update existing file, create = write new file from scratch (all lines must start with +)"
+        }
+      },
+      "required": ["path", "diff", "mode"],
+      "additionalProperties": false
+    }
+  }
+}
