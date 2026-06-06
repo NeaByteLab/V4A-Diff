@@ -6,35 +6,46 @@ import Parser from '@app/parser.ts'
  * @description Applies V4A patches and produces structured diff output.
  */
 export default class V4A {
+  /** Exact envelope lines to strip */
+  private static readonly envelopeExact = new Set([
+    '*** Begin Patch',
+    '*** End Patch',
+    '\\ No newline at end of file'
+  ])
+  /** Prefix-based envelope markers to strip */
+  private static readonly envelopePrefixes = [
+    '*** Add File:',
+    '*** Delete File:',
+    '*** Move to:',
+    '*** Update File:',
+    '--- a/',
+    '--- a\\',
+    '+++ b/',
+    '+++ b\\'
+  ] as const
+
   /**
-   * Apply a V4A diff patch.
-   * @description Parses and applies diff to source text.
+   * Apply V4A diff to source.
+   * @description Parses and applies diff to produce patched output.
    * @param sourceText - Original source file text
    * @param diffText - V4A format diff string
-   * @param mode - Apply mode: default or create
+   * @param mode - Operation mode: update, create, move, or delete
    * @returns Result with patched text and diff lines
    */
   static apply(
     sourceText: string,
     diffText: string,
-    mode: Types.ApplyDiffMode = 'default'
+    mode: Types.ApplyDiffMode = 'update'
   ): Types.ApplyDiffResult {
+    if (mode === 'delete') {
+      return this.buildResult(sourceText, '', sourceText.split('\n'), 'delete')
+    }
     const diffLines = this.stripLeadingEmpty(
       this.stripEnvelope(Parser.normalizeDiffLines(diffText))
     )
     if (mode === 'create') {
       const resultText = Parser.parseCreateDiff(diffLines)
-      const resultLines = resultText.split('\n')
-      const diffOutput: Types.DiffLine[] = []
-      for (let lineIndex = 0; lineIndex < resultLines.length; lineIndex += 1) {
-        diffOutput.push({
-          type: 'add',
-          value: resultLines[lineIndex]!,
-          oldLine: null,
-          newLine: lineIndex + 1
-        })
-      }
-      return { text: resultText, diff: diffOutput, source: sourceText }
+      return this.buildResult(sourceText, resultText, resultText.split('\n'), 'add')
     }
     return this.applyChunks(sourceText, Parser.parseUpdateDiff(diffLines, sourceText).diffChunks)
   }
@@ -59,12 +70,16 @@ export default class V4A {
     for (const diffChunk of diffChunks) {
       if (diffChunk.sourceIndex > sourceLines.length) {
         throw new RangeError(
-          `chunk sourceIndex ${diffChunk.sourceIndex} exceeds input length ${sourceLines.length}`
+          `chunk targets source line ${
+            diffChunk.sourceIndex + 1
+          } but file only has ${sourceLines.length} lines`
         )
       }
       if (sourceOffset > diffChunk.sourceIndex) {
         throw new RangeError(
-          `overlapping chunk at ${diffChunk.sourceIndex} cursor already at ${sourceOffset}`
+          `overlapping chunk at source line ${
+            diffChunk.sourceIndex + 1
+          } but cursor already at line ${sourceOffset + 1}`
         )
       }
       for (let lineIndex = sourceOffset; lineIndex < diffChunk.sourceIndex; lineIndex += 1) {
@@ -112,6 +127,33 @@ export default class V4A {
   }
 
   /**
+   * Build result for uniform operations.
+   * @description Maps lines to DiffLine entries for single-type operations.
+   * @param sourceText - Original source file text
+   * @param resultText - Patched output text
+   * @param lines - Split result lines array
+   * @param type - Diff line mutation type
+   * @returns Structured diff result with text and source
+   */
+  private static buildResult(
+    sourceText: string,
+    resultText: string,
+    lines: string[],
+    type: Types.DiffMutationType
+  ): Types.ApplyDiffResult {
+    return {
+      text: resultText,
+      source: sourceText,
+      diff: lines.map((value, index) => ({
+        type,
+        value,
+        oldLine: type === 'delete' ? index + 1 : null,
+        newLine: type === 'add' ? index + 1 : null
+      }))
+    }
+  }
+
+  /**
    * Strip patch envelope markers from lines.
    * @description Removes Begin/End Patch, file headers, and git markers.
    * @param diffLines - Raw diff lines to filter
@@ -119,22 +161,9 @@ export default class V4A {
    */
   private static stripEnvelope(diffLines: string[]): string[] {
     return diffLines.filter((currentLine) => {
-      if (currentLine === '*** Begin Patch' || currentLine === '*** End Patch') {
-        return false
-      }
-      if (currentLine.startsWith('*** Update File:') || currentLine.startsWith('*** Add File:')) {
-        return false
-      }
-      if (currentLine.startsWith('--- a/') || currentLine.startsWith('+++ b/')) {
-        return false
-      }
-      if (currentLine.startsWith('--- a\\') || currentLine.startsWith('+++ b\\')) {
-        return false
-      }
-      if (currentLine === '\\ No newline at end of file') {
-        return false
-      }
-      return true
+      const trimmedLine = currentLine.trim()
+      return !this.envelopeExact.has(trimmedLine) &&
+        !this.envelopePrefixes.some((prefix) => trimmedLine.startsWith(prefix))
     })
   }
 
