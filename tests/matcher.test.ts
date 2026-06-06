@@ -26,16 +26,16 @@ Deno.test('Matcher.contextStrategies - first strategy is identity with fuzz 0', 
   assertEquals(Matcher.contextStrategies[0]!.fuzzScore, 0)
 })
 
-Deno.test('Matcher.contextStrategies - fourth strategy normalizes unicode with fuzz 1000', () => {
-  const mapFn = Matcher.contextStrategies[3]!.mapFn
+Deno.test('Matcher.contextStrategies - fifth strategy normalizes unicode with fuzz 1000', () => {
+  const mapFn = Matcher.contextStrategies[4]!.mapFn
   assertEquals(mapFn('\u201chello\u201d'), '"hello"')
   assertEquals(mapFn('a\u2014b'), 'a-b')
   assertEquals(mapFn('a\u00a0b'), 'a b')
-  assertEquals(Matcher.contextStrategies[3]!.fuzzScore, 1000)
+  assertEquals(Matcher.contextStrategies[4]!.fuzzScore, 1000)
 })
 
-Deno.test('Matcher.contextStrategies - has 4 strategies', () => {
-  assertEquals(Matcher.contextStrategies.length, 4)
+Deno.test('Matcher.contextStrategies - has 5 strategies', () => {
+  assertEquals(Matcher.contextStrategies.length, 5)
 })
 
 Deno.test('Matcher.contextStrategies - second strategy is trimEnd with fuzz 1', () => {
@@ -44,10 +44,16 @@ Deno.test('Matcher.contextStrategies - second strategy is trimEnd with fuzz 1', 
   assertEquals(Matcher.contextStrategies[1]!.fuzzScore, 1)
 })
 
-Deno.test('Matcher.contextStrategies - third strategy is trim with fuzz 100', () => {
+Deno.test('Matcher.contextStrategies - third strategy is collapseSpace with fuzz 50', () => {
   const mapFn = Matcher.contextStrategies[2]!.mapFn
+  assertEquals(mapFn('  hello  world  '), 'hello world')
+  assertEquals(Matcher.contextStrategies[2]!.fuzzScore, 50)
+})
+
+Deno.test('Matcher.contextStrategies - fourth strategy is trim with fuzz 100', () => {
+  const mapFn = Matcher.contextStrategies[3]!.mapFn
   assertEquals(mapFn('  hello  '), 'hello')
-  assertEquals(Matcher.contextStrategies[2]!.fuzzScore, 100)
+  assertEquals(Matcher.contextStrategies[3]!.fuzzScore, 100)
 })
 
 Deno.test('Matcher.findContext - does not match before startIndex', () => {
@@ -99,7 +105,7 @@ Deno.test('Matcher.findContext - returns -1 for no match', () => {
 Deno.test('Matcher.findContext - trim fuzz matches leading and trailing whitespace', () => {
   const matchResult = Matcher.findContext(['  aaa  '], ['aaa'], 0, false)
   assertEquals(matchResult.matchedIndex, 0)
-  assertEquals(matchResult.fuzzScore, 100)
+  assertEquals(matchResult.fuzzScore, 50)
 })
 
 Deno.test('Matcher.findContext - trimEnd fuzz matches trailing whitespace', () => {
@@ -117,7 +123,7 @@ Deno.test('Matcher.findContext - unicode fuzz matches em dash', () => {
 Deno.test('Matcher.findContext - unicode fuzz matches non-breaking space', () => {
   const matchResult = Matcher.findContext(['a\u00a0b'], ['a b'], 0, false)
   assertEquals(matchResult.matchedIndex, 0)
-  assertEquals(matchResult.fuzzScore, 1000)
+  assertEquals(matchResult.fuzzScore, 50)
 })
 
 Deno.test('Matcher.findContext - unicode fuzz matches smart quotes', () => {

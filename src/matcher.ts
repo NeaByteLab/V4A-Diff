@@ -5,19 +5,6 @@ import type * as Types from '@app/types.ts'
  * @description Resolves anchors and context using fuzz strategies.
  */
 export default class Matcher {
-  /** Anchor matching strategies with fuzz scores */
-  static readonly anchorStrategies: ReadonlyArray<Types.FuzzStrategy> = [
-    { mapFn: (line) => line, fuzzScore: 0 },
-    { mapFn: (line) => line.trim(), fuzzScore: 1 },
-    { mapFn: this.normalizeUnicode.bind(this), fuzzScore: 10 }
-  ]
-  /** Context matching strategies with fuzz scores */
-  static readonly contextStrategies: ReadonlyArray<Types.FuzzStrategy> = [
-    { mapFn: (line) => line, fuzzScore: 0 },
-    { mapFn: (line) => line.trimEnd(), fuzzScore: 1 },
-    { mapFn: (line) => line.trim(), fuzzScore: 100 },
-    { mapFn: this.normalizeUnicode.bind(this), fuzzScore: 1000 }
-  ]
   /** Unicode to ASCII replacement map */
   private static readonly unicodeReplacements: Record<string, string> = {
     '\u2010': '-',
@@ -54,6 +41,20 @@ export default class Matcher {
     `[${Object.keys(this.unicodeReplacements).join('')}]`,
     'g'
   )
+  /** Anchor matching strategies with fuzz scores */
+  static readonly anchorStrategies: ReadonlyArray<Types.FuzzStrategy> = [
+    { mapFn: (line) => line, fuzzScore: 0 },
+    { mapFn: (line) => line.trim(), fuzzScore: 1 },
+    { mapFn: this.normalizeUnicode.bind(this), fuzzScore: 10 }
+  ]
+  /** Context matching strategies with fuzz scores */
+  static readonly contextStrategies: ReadonlyArray<Types.FuzzStrategy> = [
+    { mapFn: (line) => line, fuzzScore: 0 },
+    { mapFn: (line) => line.trimEnd(), fuzzScore: 1 },
+    { mapFn: this.collapseSpace.bind(this), fuzzScore: 50 },
+    { mapFn: (line) => line.trim(), fuzzScore: 100 },
+    { mapFn: this.normalizeUnicode.bind(this), fuzzScore: 1000 }
+  ]
 
   /**
    * Find context lines in source.
@@ -115,18 +116,36 @@ export default class Matcher {
       if (hasPreMatch) {
         return sourceOffset
       }
-      const anchorIndex = this.searchLines(
-        sourceLines,
-        anchorText,
-        sourceOffset,
-        strategy.mapFn
-      )
+      const anchorIndex = this.searchLines(sourceLines, anchorText, sourceOffset, strategy.mapFn)
       if (anchorIndex !== -1) {
         state.fuzzScore += strategy.fuzzScore
         return anchorIndex
       }
     }
+    for (const strategy of this.anchorStrategies) {
+      const prefixIndex = this.searchLines(
+        sourceLines,
+        anchorText,
+        sourceOffset,
+        strategy.mapFn,
+        true
+      )
+      if (prefixIndex !== -1) {
+        state.fuzzScore += strategy.fuzzScore + 5
+        return prefixIndex
+      }
+    }
     return sourceOffset
+  }
+
+  /**
+   * Collapse whitespace runs to single space.
+   * @description Trims and normalizes internal whitespace.
+   * @param line - Input line with potential mixed whitespace
+   * @returns Whitespace-collapsed line string
+   */
+  private static collapseSpace(line: string): string {
+    return line.replace(/\s+/g, ' ').trim()
   }
 
   /**
@@ -162,30 +181,33 @@ export default class Matcher {
    * @returns ASCII-normalized line string
    */
   private static normalizeUnicode(line: string): string {
-    return line.trim().replace(
-      this.unicodePattern,
-      (char) => this.unicodeReplacements[char]!
-    )
+    return line.trim().replace(this.unicodePattern, (char) => this.unicodeReplacements[char]!)
   }
 
   /**
-   * Search for matching line in source.
-   * @description Finds first line matching target via mapFn.
+   * Search source lines for target match.
+   * @description Finds first line matching target via mapFn and comparator.
    * @param sourceLines - Lines to search through
    * @param targetText - Text to find
    * @param startIndex - Search start position
    * @param mapFn - Line transformation for comparison
+   * @param prefix - Use startsWith instead of strict equality
    * @returns Matched line index or -1
    */
   private static searchLines(
     sourceLines: string[],
     targetText: string,
     startIndex: number,
-    mapFn: Types.LineTransformFn
+    mapFn: Types.LineTransformFn,
+    prefix = false
   ): number {
     const mappedTarget = mapFn(targetText)
+    if (prefix && mappedTarget.length === 0) {
+      return -1
+    }
     for (let lineIndex = startIndex; lineIndex < sourceLines.length; lineIndex += 1) {
-      if (mapFn(sourceLines[lineIndex]!) === mappedTarget) {
+      const mapped = mapFn(sourceLines[lineIndex]!)
+      if (prefix ? mapped.startsWith(mappedTarget) : mapped === mappedTarget) {
         return lineIndex
       }
     }
