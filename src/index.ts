@@ -37,6 +37,8 @@ export default class V4A {
     diffText: string,
     mode: Types.ApplyDiffMode = 'update'
   ): Types.ApplyDiffResult {
+    sourceText = (sourceText ?? '').replaceAll('\r\n', '\n')
+    diffText = diffText ?? ''
     if (mode === 'delete') {
       return this.buildResult(sourceText, '', sourceText.split('\n'), 'delete')
     }
