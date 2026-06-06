@@ -11,11 +11,11 @@ Tool calling schemas for the `apply_patch` function across different LLM provide
 
 ## Parameters
 
-| Parameter | Type                    | Required | Description                                               |
-| --------- | ----------------------- | -------- | --------------------------------------------------------- |
-| `path`    | `string`                | Yes      | Absolute path to the file                                 |
-| `diff`    | `string`                | Yes      | V4A diff with `@@` anchors and `space/+/-` prefixed lines |
-| `mode`    | `"default" \| "create"` | Yes      | `default` updates existing file, `create` writes new file |
+| Parameter | Type                                         | Required | Description                                                              |
+| --------- | -------------------------------------------- | -------- | ------------------------------------------------------------------------ |
+| `path`    | `string`                                     | Yes      | Absolute path to the file                                                |
+| `diff`    | `string`                                     | Yes      | V4A diff with `@@` anchors and `space/+/-` prefixed lines                |
+| `mode`    | `"update" \| "create" \| "delete" \| "move"` | Yes      | `update` modifies, `create` writes new, `delete` removes, `move` renames |
 
 ## Notes
 

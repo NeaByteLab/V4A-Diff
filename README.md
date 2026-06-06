@@ -18,6 +18,7 @@ V4A is a context-anchored diff format designed for LLM tool calling. Instead of 
 
 ## Features
 
+- **CRUD modes** - Update, create, delete, and move files in a single API.
 - **Token efficient** - Returns only changed lines, not the entire file.
 - **Instant rollback** - Original source included in result, no manual tracking.
 - **Structured diff** - Line-by-line add/delete/equal metadata with line numbers.
@@ -54,6 +55,9 @@ Or via [esm.sh](https://esm.sh):
 ```
 
 ## Usage
+
+> [!WARNING]
+> This is a pure text-to-text API with no filesystem I/O, designed to run in any environment including browsers, CLI, and terminal applications. Filesystem operations such as reading, writing, and deleting files are left to the consumer.
 
 ```ts
 import V4A from '@neabyte/v4a-diff'
@@ -104,6 +108,37 @@ const result = V4A.apply(
 // result.text === 'export const PORT = 8080\nexport const HOST = "localhost"'
 ```
 
+### Delete a file
+
+> [!NOTE]
+> Source is needed to produce the structured diff output.
+
+```ts
+const result = V4A.apply('const x = 1\nconst y = 2', '*** Delete File: /src/config.ts', 'delete')
+// result.text === ''
+// result.source === 'const x = 1\nconst y = 2'
+```
+
+### Move a file (apply diff at new path)
+
+> [!NOTE]
+> Source is needed to produce the structured diff output.
+
+```ts
+// Move with edits
+const result = V4A.apply(
+  'const x = 1',
+  '*** Move to: /src/new-path.ts\n@@\n-const x = 1\n+const x = 2',
+  'move'
+)
+// result.text === 'const x = 2'
+
+// Move without edits (pure rename)
+const renamed = V4A.apply('const x = 1\nconst y = 2', '*** Move to: /src/new-path.ts', 'move')
+// renamed.text === 'const x = 1\nconst y = 2'
+// renamed.diff lines are all { type: 'equal' }
+```
+
 ### Multi-hunk edits
 
 ```ts
@@ -117,11 +152,11 @@ const result = V4A.apply(
 
 ### `V4A.apply(sourceText, diffText, mode?)`
 
-| Parameter    | Type                    | Description                                                          |
-| ------------ | ----------------------- | -------------------------------------------------------------------- |
-| `sourceText` | `string`                | Original file content                                                |
-| `diffText`   | `string`                | V4A format diff string                                               |
-| `mode`       | `'default' \| 'create'` | `default` updates existing text, `create` builds from `+` lines only |
+| Parameter    | Type            | Description                                               |
+| ------------ | --------------- | --------------------------------------------------------- |
+| `sourceText` | `string`        | Original file content                                     |
+| `diffText`   | `string`        | V4A format diff string                                    |
+| `mode`       | `ApplyDiffMode` | `'update'` (default), `'create'`, `'delete'`, or `'move'` |
 
 **Returns:** `ApplyDiffResult`
 
@@ -152,10 +187,20 @@ type DiffLine = {
 *** End Patch
 ```
 
+Other file operation headers:
+
+```
+*** Add File: {path}
+*** Delete File: {path}
+*** Move to: {new_path}
+```
+
 - `@@` followed by text anchors to a matching line in the source file.
 - A bare `@@` alone means "start of file."
 - Every line in a hunk must start with ``(space),`-`, or `+`.
 - `*** Add File:` with `+` prefixed lines creates new files.
+- `*** Delete File:` marks a file for deletion.
+- `*** Move to:` renames/moves a file while applying edits.
 
 ## LLM Tool Schemas
 
