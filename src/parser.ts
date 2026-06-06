@@ -96,10 +96,12 @@ export default class Parser {
       )
       if (contextMatch.matchedIndex === -1) {
         const errorLabel = hunkSection.isEndOfFile ? 'EOF context' : 'context'
+        const expected = hunkSection.contextLines[0] ?? ''
+        const actual = sourceLines[sourceOffset] ?? '(end of file)'
         throw new SyntaxError(
           `line ${state.currentIndex + 1} unmatched ${errorLabel} at source line ${
             sourceOffset + 1
-          } "${hunkSection.contextLines[0] ?? ''}"`
+          } expected "${expected}" but found "${actual}"`
         )
       }
       state.fuzzScore += contextMatch.fuzzScore

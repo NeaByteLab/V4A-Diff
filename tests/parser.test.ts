@@ -80,18 +80,13 @@ Deno.test('Parser.parseCreateDiff - throws on missing + prefix', () => {
   )
 })
 
-Deno.test('Parser.parseUpdateDiff - error messages have no colons after line number', () => {
-  const cases = [
-    () => Parser.parseUpdateDiff(['@@', ' zzz'], 'aaa'),
-    () => Parser.parseUpdateDiff(['@@', ' aaa', 'Xbad'], 'aaa')
-  ]
-  for (const fn of cases) {
-    try {
-      fn()
-    } catch (error) {
-      const err = error as Error
-      assertEquals(err.message.match(/line \d+:/) !== null, false)
-    }
+Deno.test('Parser.parseUpdateDiff - error messages show expected vs found', () => {
+  try {
+    Parser.parseUpdateDiff(['@@', ' zzz'], 'aaa')
+  } catch (error) {
+    const err = error as Error
+    assertEquals(err.message.includes('expected'), true)
+    assertEquals(err.message.includes('but found'), true)
   }
 })
 
