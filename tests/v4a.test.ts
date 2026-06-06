@@ -50,8 +50,45 @@ Deno.test('V4A.apply - creates single line file', () => {
 })
 
 Deno.test('V4A.apply - default mode with explicit parameter', () => {
-  const applyResult = V4A.apply('const x = 1', '@@\n-const x = 1\n+const x = 2', 'default')
+  const applyResult = V4A.apply('const x = 1', '@@\n-const x = 1\n+const x = 2', 'update')
   assertEquals(applyResult.text, 'const x = 2')
+})
+
+Deno.test('V4A.apply - delete mode has correct old line numbers', () => {
+  const applyResult = V4A.apply('aaa\nbbb\nccc', '', 'delete')
+  assertEquals(applyResult.diff[0]!.oldLine, 1)
+  assertEquals(applyResult.diff[1]!.oldLine, 2)
+  assertEquals(applyResult.diff[2]!.oldLine, 3)
+})
+
+Deno.test('V4A.apply - delete mode has correct values', () => {
+  const applyResult = V4A.apply('aaa\nbbb', '', 'delete')
+  assertEquals(applyResult.diff[0]!.value, 'aaa')
+  assertEquals(applyResult.diff[1]!.value, 'bbb')
+})
+
+Deno.test('V4A.apply - delete mode has null new line numbers', () => {
+  const applyResult = V4A.apply('aaa\nbbb', '', 'delete')
+  assertEquals(applyResult.diff[0]!.newLine, null)
+  assertEquals(applyResult.diff[1]!.newLine, null)
+})
+
+Deno.test('V4A.apply - delete mode marks all lines as delete', () => {
+  const applyResult = V4A.apply('aaa\nbbb', '', 'delete')
+  assertEquals(applyResult.diff.length, 2)
+  assertEquals(applyResult.diff[0]!.type, 'delete')
+  assertEquals(applyResult.diff[1]!.type, 'delete')
+})
+
+Deno.test('V4A.apply - delete mode preserves source', () => {
+  const sourceText = 'aaa\nbbb\nccc'
+  const applyResult = V4A.apply(sourceText, '', 'delete')
+  assertEquals(applyResult.source, sourceText)
+})
+
+Deno.test('V4A.apply - delete mode returns empty text', () => {
+  const applyResult = V4A.apply('aaa\nbbb\nccc', '', 'delete')
+  assertEquals(applyResult.text, '')
 })
 
 Deno.test('V4A.apply - deletes line without inserting', () => {
@@ -141,6 +178,29 @@ Deno.test('V4A.apply - inserts new line without deleting', () => {
     applyResult.text,
     'function div(a, b) {\n  if (b === 0) throw new Error("zero")\n  return a / b\n}'
   )
+})
+
+Deno.test('V4A.apply - move mode applies diff same as update', () => {
+  const applyResult = V4A.apply('aaa\nbbb\nccc', '@@\n aaa\n-bbb\n+BBB\n ccc', 'move')
+  assertEquals(applyResult.text, 'aaa\nBBB\nccc')
+})
+
+Deno.test('V4A.apply - move mode preserves source', () => {
+  const sourceText = 'aaa\nbbb'
+  const applyResult = V4A.apply(sourceText, '@@\n aaa\n-bbb\n+BBB', 'move')
+  assertEquals(applyResult.source, sourceText)
+})
+
+Deno.test('V4A.apply - move mode pure rename produces all equal diff', () => {
+  const applyResult = V4A.apply(
+    'const x = 1\nconst y = 2',
+    '*** Move to: /src/new-path.ts',
+    'move'
+  )
+  assertEquals(applyResult.text, 'const x = 1\nconst y = 2')
+  assertEquals(applyResult.diff.length, 2)
+  assertEquals(applyResult.diff[0]!.type, 'equal')
+  assertEquals(applyResult.diff[1]!.type, 'equal')
 })
 
 Deno.test('V4A.apply - multiple spread chunks across file', () => {
@@ -246,6 +306,14 @@ Deno.test('V4A.apply - strips *** Begin/End Patch envelope', () => {
   assertEquals(applyResult.text, 'const x = 2')
 })
 
+Deno.test('V4A.apply - strips *** Move to: marker', () => {
+  const applyResult = V4A.apply(
+    'const x = 1',
+    '*** Begin Patch\n*** Update File: old.ts\n*** Move to: new.ts\n@@\n-const x = 1\n+const x = 2\n*** End Patch'
+  )
+  assertEquals(applyResult.text, 'const x = 2')
+})
+
 Deno.test('V4A.apply - strips \\ No newline at end of file', () => {
   const applyResult = V4A.apply(
     'const z = 1',
@@ -267,10 +335,59 @@ Deno.test('V4A.apply - strips leading empty lines', () => {
   assertEquals(applyResult.text, 'aaa\nBBB')
 })
 
+Deno.test('V4A.apply - strips tab-padded envelope markers', () => {
+  const applyResult = V4A.apply(
+    'aaa',
+    '\t*** Begin Patch\t\n\t*** Update File: f.ts\t\n@@\n-aaa\n+bbb\n\t*** End Patch\t'
+  )
+  assertEquals(applyResult.text, 'bbb')
+})
+
 Deno.test('V4A.apply - strips unified --- a/ +++ b/ headers', () => {
   const applyResult = V4A.apply(
     'const y = 1',
     '--- a/f.ts\n+++ b/f.ts\n@@\n-const y = 1\n+const y = 2'
+  )
+  assertEquals(applyResult.text, 'const y = 2')
+})
+
+Deno.test('V4A.apply - strips whitespace-padded *** Add File', () => {
+  const applyResult = V4A.apply(
+    '',
+    '  *** Begin Patch  \n  *** Add File: new.ts  \n+hello\n  *** End Patch  ',
+    'create'
+  )
+  assertEquals(applyResult.text, 'hello')
+})
+
+Deno.test('V4A.apply - strips whitespace-padded *** Begin/End Patch', () => {
+  const applyResult = V4A.apply(
+    'const x = 1',
+    '  *** Begin Patch  \n  *** Update File: f.ts  \n@@\n-const x = 1\n+const x = 2\n  *** End Patch  '
+  )
+  assertEquals(applyResult.text, 'const x = 2')
+})
+
+Deno.test('V4A.apply - strips whitespace-padded *** Delete File', () => {
+  const applyResult = V4A.apply(
+    'const x = 1',
+    '  *** Begin Patch  \n  *** Delete File: old.ts  \n@@\n-const x = 1\n+const x = 2\n  *** End Patch  '
+  )
+  assertEquals(applyResult.text, 'const x = 2')
+})
+
+Deno.test('V4A.apply - strips whitespace-padded no newline marker', () => {
+  const applyResult = V4A.apply(
+    'const z = 1',
+    '@@\n-const z = 1\n+const z = 2\n  \\ No newline at end of file  '
+  )
+  assertEquals(applyResult.text, 'const z = 2')
+})
+
+Deno.test('V4A.apply - strips whitespace-padded unified headers', () => {
+  const applyResult = V4A.apply(
+    'const y = 1',
+    '  --- a/f.ts  \n  +++ b/f.ts  \n@@\n-const y = 1\n+const y = 2'
   )
   assertEquals(applyResult.text, 'const y = 2')
 })
