@@ -1,7 +1,7 @@
 {
   "name": "@neabyte/v4a-diff",
   "description": "Apply context-anchored file patches from LLM tool calls",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "license": "MIT",
   "exports": "./src/index.ts",
