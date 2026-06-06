@@ -1,5 +1,5 @@
 /** Diff application mode selector */
-export type ApplyDiffMode = 'default' | 'create'
+export type ApplyDiffMode = 'create' | 'delete' | 'move' | 'update'
 
 /**
  * Result from applying a diff.
@@ -44,7 +44,7 @@ export type DiffChunk = {
  */
 export type DiffLine = {
   /** Operation type for this line */
-  type: 'add' | 'delete' | 'equal'
+  type: DiffLineType
   /** Line content without prefix */
   value: string
   /** Source line number or null */
@@ -53,19 +53,28 @@ export type DiffLine = {
   newLine: number | null
 }
 
+/** All diff line operation types */
+export type DiffLineType = DiffMutationType | 'equal'
+
+/** Diff line type for mutation operations */
+export type DiffMutationType = 'add' | 'delete'
+
 /**
  * Fuzzy matching strategy with penalty.
  * @description Pairs a line transform with fuzz score.
  */
 export type FuzzStrategy = {
   /** Line transformation function */
-  mapFn: (line: string) => string
+  mapFn: LineTransformFn
   /** Penalty score for this strategy */
   fuzzScore: number
 }
 
 /** Hunk line operation mode */
-export type HunkLineMode = 'keep' | 'add' | 'delete'
+export type HunkLineMode = DiffMutationType | 'keep'
+
+/** Line transformation function signature */
+export type LineTransformFn = (line: string) => string
 
 /**
  * Parsed update diff result.
