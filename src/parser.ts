@@ -19,7 +19,8 @@ export default class Parser {
     '*** End Patch',
     '*** Update File:',
     '*** Delete File:',
-    '*** Add File:'
+    '*** Add File:',
+    '*** Move to:'
   ] as const
 
   /**
@@ -50,7 +51,9 @@ export default class Parser {
       const currentLine = state.lines[state.currentIndex]!
       state.currentIndex += 1
       if (!currentLine.startsWith('+')) {
-        throw new SyntaxError(`expected '+' prefix but got "${currentLine}"`)
+        throw new SyntaxError(
+          `line ${state.currentIndex} expected '+' prefix but got "${currentLine}"`
+        )
       }
       outputLines.push(currentLine.slice(1))
     }
@@ -77,7 +80,9 @@ export default class Parser {
         state.currentIndex += 1
       }
       if (!anchorText && !hasBareAnchor && sourceOffset !== 0) {
-        throw new SyntaxError(`unexpected line "${state.lines[state.currentIndex]}"`)
+        throw new SyntaxError(
+          `line ${state.currentIndex + 1} unexpected line "${state.lines[state.currentIndex]}"`
+        )
       }
       if (anchorText?.trim()) {
         sourceOffset = Matcher.resolveAnchor(anchorText, sourceLines, sourceOffset, state)
@@ -92,9 +97,9 @@ export default class Parser {
       if (contextMatch.matchedIndex === -1) {
         const errorLabel = hunkSection.isEndOfFile ? 'EOF context' : 'context'
         throw new SyntaxError(
-          `unmatched ${errorLabel} at cursor ${sourceOffset} "${
-            hunkSection.contextLines.join('\n')
-          }"`
+          `line ${state.currentIndex + 1} unmatched ${errorLabel} at source line ${
+            sourceOffset + 1
+          } "${hunkSection.contextLines[0] ?? ''}"`
         )
       }
       state.fuzzScore += contextMatch.fuzzScore
@@ -197,14 +202,14 @@ export default class Parser {
         break
       }
       if (rawLine.startsWith('***')) {
-        throw new SyntaxError(`unexpected marker "${rawLine}"`)
+        throw new SyntaxError(`line ${lineIndex + 1} unexpected marker "${rawLine}"`)
       }
       lineIndex += 1
       const lastMode: Types.HunkLineMode = lineMode
       const normalizedLine = rawLine || ' '
       const resolvedMode = this.prefixToMode[normalizedLine[0]!]
       if (!resolvedMode) {
-        throw new SyntaxError(`unexpected line prefix "${normalizedLine}"`)
+        throw new SyntaxError(`line ${lineIndex} unexpected line prefix "${normalizedLine}"`)
       }
       lineMode = resolvedMode
       const unprefixedLine = normalizedLine.slice(1)
@@ -239,7 +244,9 @@ export default class Parser {
       return { contextLines, diffChunks, endIndex: lineIndex + 1, isEndOfFile: true }
     }
     if (lineIndex === startIndex) {
-      throw new SyntaxError(`empty section at index ${lineIndex} "${lines[lineIndex]}"`)
+      throw new SyntaxError(
+        `line ${lineIndex + 1} empty section, expected content but got "${lines[lineIndex]}"`
+      )
     }
     return { contextLines, diffChunks, endIndex: lineIndex, isEndOfFile: false }
   }
