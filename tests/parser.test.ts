@@ -31,6 +31,24 @@ Deno.test('Parser.normalizeDiffLines - trims trailing empty line', () => {
   assertEquals(diffLines, ['aaa', 'bbb'])
 })
 
+Deno.test('Parser.parseCreateDiff - error has no colon after line number', () => {
+  try {
+    Parser.parseCreateDiff(['+ok', '-bad'])
+  } catch (error) {
+    const err = error as Error
+    assertEquals(err.message.includes('line 2 '), true)
+    assertEquals(err.message.includes('line 2:'), false)
+  }
+})
+
+Deno.test('Parser.parseCreateDiff - error includes line number', () => {
+  assertThrows(
+    () => Parser.parseCreateDiff(['+ok', '+fine', '-bad']),
+    SyntaxError,
+    'line 3'
+  )
+})
+
 Deno.test('Parser.parseCreateDiff - parses multiple add lines', () => {
   const createText = Parser.parseCreateDiff(['+aaa', '+bbb', '+ccc'])
   assertEquals(createText, 'aaa\nbbb\nccc')
@@ -60,6 +78,21 @@ Deno.test('Parser.parseCreateDiff - throws on missing + prefix', () => {
     SyntaxError,
     "expected '+' prefix"
   )
+})
+
+Deno.test('Parser.parseUpdateDiff - error messages have no colons after line number', () => {
+  const cases = [
+    () => Parser.parseUpdateDiff(['@@', ' zzz'], 'aaa'),
+    () => Parser.parseUpdateDiff(['@@', ' aaa', 'Xbad'], 'aaa')
+  ]
+  for (const fn of cases) {
+    try {
+      fn()
+    } catch (error) {
+      const err = error as Error
+      assertEquals(err.message.match(/line \d+:/) !== null, false)
+    }
+  }
 })
 
 Deno.test('Parser.parseUpdateDiff - fuzz score nonzero for whitespace match', () => {
@@ -161,5 +194,32 @@ Deno.test('Parser.parseUpdateDiff - throws on unmatched context', () => {
     () => Parser.parseUpdateDiff(['@@', ' zzz', '-bbb', '+BBB'], 'aaa\nbbb'),
     SyntaxError,
     'unmatched context'
+  )
+})
+
+Deno.test('Parser.parseUpdateDiff - unexpected prefix error includes line number', () => {
+  try {
+    Parser.parseUpdateDiff(['@@', ' aaa', 'Xbad'], 'aaa\nbbb')
+  } catch (error) {
+    const err = error as Error
+    assertEquals(err.message.startsWith('line '), true)
+    assertEquals(err.message.includes('unexpected line prefix'), true)
+  }
+})
+
+Deno.test('Parser.parseUpdateDiff - unmatched context error includes line number', () => {
+  try {
+    Parser.parseUpdateDiff(['@@', ' zzz', '-bbb', '+BBB'], 'aaa\nbbb')
+  } catch (error) {
+    const err = error as Error
+    assertEquals(err.message.startsWith('line '), true)
+  }
+})
+
+Deno.test('Parser.parseUpdateDiff - unmatched context error includes source line', () => {
+  assertThrows(
+    () => Parser.parseUpdateDiff(['@@', ' zzz', '-bbb', '+BBB'], 'aaa\nbbb'),
+    SyntaxError,
+    'source line'
   )
 })
