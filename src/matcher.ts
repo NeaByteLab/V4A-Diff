@@ -18,37 +18,42 @@ export default class Matcher {
     { mapFn: (line) => line.trim(), fuzzScore: 100 },
     { mapFn: this.normalizeUnicode.bind(this), fuzzScore: 1000 }
   ]
-  /** Unicode codepoint to ASCII replacement map */
-  private static readonly unicodeMap = new Map<number, string>([
-    [0x2010, '-'],
-    [0x2011, '-'],
-    [0x2012, '-'],
-    [0x2013, '-'],
-    [0x2014, '-'],
-    [0x2015, '-'],
-    [0x2212, '-'],
-    [0x2018, "'"],
-    [0x2019, "'"],
-    [0x201a, "'"],
-    [0x201b, "'"],
-    [0x201c, '"'],
-    [0x201d, '"'],
-    [0x201e, '"'],
-    [0x201f, '"'],
-    [0x00a0, ' '],
-    [0x2002, ' '],
-    [0x2003, ' '],
-    [0x2004, ' '],
-    [0x2005, ' '],
-    [0x2006, ' '],
-    [0x2007, ' '],
-    [0x2008, ' '],
-    [0x2009, ' '],
-    [0x200a, ' '],
-    [0x202f, ' '],
-    [0x205f, ' '],
-    [0x3000, ' ']
-  ])
+  /** Unicode to ASCII replacement map */
+  private static readonly unicodeReplacements: Record<string, string> = {
+    '\u2010': '-',
+    '\u2011': '-',
+    '\u2012': '-',
+    '\u2013': '-',
+    '\u2014': '-',
+    '\u2015': '-',
+    '\u2212': '-',
+    '\u2018': "'",
+    '\u2019': "'",
+    '\u201a': "'",
+    '\u201b': "'",
+    '\u201c': '"',
+    '\u201d': '"',
+    '\u201e': '"',
+    '\u201f': '"',
+    '\u00a0': ' ',
+    '\u2002': ' ',
+    '\u2003': ' ',
+    '\u2004': ' ',
+    '\u2005': ' ',
+    '\u2006': ' ',
+    '\u2007': ' ',
+    '\u2008': ' ',
+    '\u2009': ' ',
+    '\u200a': ' ',
+    '\u202f': ' ',
+    '\u205f': ' ',
+    '\u3000': ' '
+  }
+  /** Precompiled Unicode replacement pattern */
+  private static readonly unicodePattern = new RegExp(
+    `[${Object.keys(this.unicodeReplacements).join('')}]`,
+    'g'
+  )
 
   /**
    * Find context lines in source.
@@ -157,14 +162,10 @@ export default class Matcher {
    * @returns ASCII-normalized line string
    */
   private static normalizeUnicode(line: string): string {
-    const trimmedLine = line.trim()
-    const charBuffer: string[] = []
-    for (let charIndex = 0; charIndex < trimmedLine.length; charIndex += 1) {
-      charBuffer.push(
-        this.unicodeMap.get(trimmedLine.charCodeAt(charIndex)) ?? trimmedLine[charIndex]!
-      )
-    }
-    return charBuffer.join('')
+    return line.trim().replace(
+      this.unicodePattern,
+      (char) => this.unicodeReplacements[char]!
+    )
   }
 
   /**
@@ -180,7 +181,7 @@ export default class Matcher {
     sourceLines: string[],
     targetText: string,
     startIndex: number,
-    mapFn: Types.FuzzStrategy['mapFn']
+    mapFn: Types.LineTransformFn
   ): number {
     const mappedTarget = mapFn(targetText)
     for (let lineIndex = startIndex; lineIndex < sourceLines.length; lineIndex += 1) {
@@ -204,7 +205,7 @@ export default class Matcher {
     sourceLines: string[],
     targetLines: string[],
     startIndex: number,
-    mapFn: Types.FuzzStrategy['mapFn']
+    mapFn: Types.LineTransformFn
   ): boolean {
     if (startIndex + targetLines.length > sourceLines.length) {
       return false
