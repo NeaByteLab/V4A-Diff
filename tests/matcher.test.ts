@@ -50,6 +50,11 @@ Deno.test('Matcher.contextStrategies - third strategy is trim with fuzz 100', ()
   assertEquals(Matcher.contextStrategies[2]!.fuzzScore, 100)
 })
 
+Deno.test('Matcher.findContext - does not match before startIndex', () => {
+  const matchResult = Matcher.findContext(['aaa', 'bbb', 'aaa'], ['aaa'], 1, false)
+  assertEquals(matchResult.matchedIndex, 2)
+})
+
 Deno.test('Matcher.findContext - EOF mode falls back with penalty', () => {
   const matchResult = Matcher.findContext(['aaa', 'bbb', 'ccc'], ['aaa'], 0, true)
   assertEquals(matchResult.matchedIndex, 0)
@@ -60,11 +65,6 @@ Deno.test('Matcher.findContext - EOF mode matches at end of file', () => {
   const matchResult = Matcher.findContext(['aaa', 'bbb', 'ccc'], ['ccc'], 0, true)
   assertEquals(matchResult.matchedIndex, 2)
   assertEquals(matchResult.fuzzScore, 0)
-})
-
-Deno.test('Matcher.findContext - does not match before startIndex', () => {
-  const matchResult = Matcher.findContext(['aaa', 'bbb', 'aaa'], ['aaa'], 1, false)
-  assertEquals(matchResult.matchedIndex, 2)
 })
 
 Deno.test('Matcher.findContext - empty context returns startIndex', () => {
