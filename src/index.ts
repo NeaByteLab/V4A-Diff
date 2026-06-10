@@ -1,5 +1,6 @@
 import type * as Types from '@app/types.ts'
 import Parser from '@app/parser.ts'
+import Refiner from '@app/refine.ts'
 
 /**
  * V4A context-anchored diff applicator.
@@ -50,6 +51,16 @@ export default class V4A {
       return this.buildResult(sourceText, resultText, resultText.split('\n'), 'add')
     }
     return this.applyChunks(sourceText, Parser.parseUpdateDiff(diffLines, sourceText).diffChunks)
+  }
+
+  /**
+   * Refine line diff into grapheme segments.
+   * @description Attaches intra-line segments to changed lines.
+   * @param diffLines - Structured line diff from apply
+   * @returns Diff with segments on changed lines
+   */
+  static refine(diffLines: Types.DiffLine[]): Types.DiffLine[] {
+    return Refiner.refine(diffLines)
   }
 
   /**
