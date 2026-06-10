@@ -22,6 +22,7 @@ V4A is a context-anchored diff format designed for LLM tool calling. Instead of 
 - **Token efficient** - Returns only changed lines, not the entire file.
 - **Instant rollback** - Original source included in result, no manual tracking.
 - **Structured diff** - Line-by-line add/delete/equal metadata with line numbers.
+- **Character-level diff** - Optional intra-line segments via grapheme-aware refine.
 - **Smart matching** - Fuzzy context resolution with whitespace and Unicode tolerance.
 
 ## Installation
@@ -58,6 +59,8 @@ Or via [esm.sh](https://esm.sh):
 
 > [!WARNING]
 > This is a pure text-to-text API with no filesystem I/O, designed to run in any environment including browsers, CLI, and terminal applications. Filesystem operations such as reading, writing, and deleting files are left to the consumer.
+
+<img src="./assets/demo.webp" alt="V4A Diff CLI Demo" width="100%">
 
 ```ts
 import V4A from '@neabyte/v4a-diff'
@@ -148,6 +151,18 @@ const result = V4A.apply(
 )
 ```
 
+### Character-level diff
+
+```ts
+const result = V4A.apply('const x = 1', '@@\n-const x = 1\n+const x = 2')
+const refined = V4A.refine(result.diff)
+// refined[1].segments
+// [
+//   { type: 'equal', value: 'const x = ' },
+//   { type: 'add',   value: '2' }
+// ]
+```
+
 ## API
 
 ### `V4A.apply(sourceText, diffText, mode?)`
@@ -172,8 +187,39 @@ type DiffLine = {
   value: string // Line content
   oldLine: number | null // Source line number (null for adds)
   newLine: number | null // Result line number (null for deletes)
+  segments?: CharSegment[] // Intra-line segments (only after refine)
+}
+
+type CharSegment = {
+  type: 'add' | 'delete' | 'equal'
+  value: string // Segment content
 }
 ```
+
+### `V4A.refine(diff)`
+
+Adds character-level (intra-line) detail on top of a line diff. It pairs adjacent `delete` and `add` lines, runs a grapheme-level diff via `Intl.Segmenter`, and attaches a `segments` array to each changed line. Other lines pass through untouched. The core `apply()` output stays the single source of truth - `value` for the whole line, `segments` for the char-by-char view.
+
+| Parameter | Type         | Description                   |
+| --------- | ------------ | ----------------------------- |
+| `diff`    | `DiffLine[]` | Line diff from `apply().diff` |
+
+**Returns:** `DiffLine[]` with `segments` on changed lines.
+
+```ts
+const result = V4A.apply('return a - b', '@@\n-return a - b\n+return a + b')
+const refined = V4A.refine(result.diff)
+
+console.log(refined[1].segments)
+// [
+//   { type: 'equal', value: 'return a ' },
+//   { type: 'add',   value: '+' },
+//   { type: 'equal', value: ' b' }
+// ]
+```
+
+> [!NOTE]
+> `refine` is safe by default - non-array input returns `[]`, non-string values pass unrefined, and shared prefixes/suffixes are trimmed before diffing.
 
 ## V4A Diff Format
 
