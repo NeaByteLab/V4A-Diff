@@ -15,6 +15,17 @@ export type ApplyDiffResult = {
 }
 
 /**
+ * Intra-line segment in refined diff.
+ * @description Represents one add, delete, or equal grapheme run.
+ */
+export type CharSegment = {
+  /** Operation type for this segment */
+  type: DiffLineType
+  /** Segment content */
+  value: string
+}
+
+/**
  * Fuzzy context match result.
  * @description Holds matched line index and fuzz penalty.
  */
@@ -51,6 +62,8 @@ export type DiffLine = {
   oldLine: number | null
   /** Result line number or null */
   newLine: number | null
+  /** Intra-line grapheme segments when refined */
+  segments?: CharSegment[]
 }
 
 /** All diff line operation types */
