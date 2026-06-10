@@ -22,16 +22,22 @@ Deno.test('Matcher.anchorStrategies - second strategy is trim', () => {
   assertEquals(Matcher.anchorStrategies[1]!.fuzzScore, 1)
 })
 
-Deno.test('Matcher.contextStrategies - first strategy is identity with fuzz 0', () => {
-  assertEquals(Matcher.contextStrategies[0]!.fuzzScore, 0)
-})
-
 Deno.test('Matcher.contextStrategies - fifth strategy normalizes unicode with fuzz 1000', () => {
   const mapFn = Matcher.contextStrategies[4]!.mapFn
   assertEquals(mapFn('\u201chello\u201d'), '"hello"')
   assertEquals(mapFn('a\u2014b'), 'a-b')
   assertEquals(mapFn('a\u00a0b'), 'a b')
   assertEquals(Matcher.contextStrategies[4]!.fuzzScore, 1000)
+})
+
+Deno.test('Matcher.contextStrategies - first strategy is identity with fuzz 0', () => {
+  assertEquals(Matcher.contextStrategies[0]!.fuzzScore, 0)
+})
+
+Deno.test('Matcher.contextStrategies - fourth strategy is trim with fuzz 100', () => {
+  const mapFn = Matcher.contextStrategies[3]!.mapFn
+  assertEquals(mapFn('  hello  '), 'hello')
+  assertEquals(Matcher.contextStrategies[3]!.fuzzScore, 100)
 })
 
 Deno.test('Matcher.contextStrategies - has 5 strategies', () => {
@@ -48,12 +54,6 @@ Deno.test('Matcher.contextStrategies - third strategy is collapseSpace with fuzz
   const mapFn = Matcher.contextStrategies[2]!.mapFn
   assertEquals(mapFn('  hello  world  '), 'hello world')
   assertEquals(Matcher.contextStrategies[2]!.fuzzScore, 50)
-})
-
-Deno.test('Matcher.contextStrategies - fourth strategy is trim with fuzz 100', () => {
-  const mapFn = Matcher.contextStrategies[3]!.mapFn
-  assertEquals(mapFn('  hello  '), 'hello')
-  assertEquals(Matcher.contextStrategies[3]!.fuzzScore, 100)
 })
 
 Deno.test('Matcher.findContext - does not match before startIndex', () => {
